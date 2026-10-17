@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BurnerCheck: free disposable email checker</title>
+<meta name="description" content="Check if an email address or domain is disposable (burner), a role address like info@, or a free webmail provider. Free, offline, no MX lookups. JSON API.">
+<link rel="stylesheet" href="/style.css">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<link rel="service-desc" type="application/json" href="/openapi.json" title="OpenAPI 3.1">
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/">BurnerCheck</a><nav><a href="/docs">API docs</a><a href="/docs#pricing">Pricing</a><a href="/docs#privacy">Privacy</a></nav></div></header>
+<main class="wrap">
+  <h1>Is this email a burner?</h1>
+  <p class="lead">Paste one email address or a domain. BurnerCheck tells you if it is a <strong>disposable</strong> (throwaway) inbox, a <strong>role</strong> address like info@ or admin@, a <strong>free webmail</strong> provider, or badly formed, and suggests a fix for common typos like gamil.com.</p>
+  <form id="f" class="check" action="/" method="post" autocomplete="off">
+    <label for="q" class="sr">Email address or domain</label>
+    <input id="q" name="q" type="text" inputmode="email" maxlength="320" placeholder="jane@mailinator.com or example.com" required spellcheck="false" autocapitalize="off">
+    <button type="submit">Check</button>
+  </form>
+  <p class="small muted">Free: about {{ANON_PER_MIN}} checks per minute. Tip: check just the domain if you prefer; domain mode never sends the part before the @.</p>
+  <div id="nojs">{{NOJS_RESULT}}</div>
+
+  <section id="out" class="result" hidden aria-live="polite">
+    <div class="verdict"><span id="badge" class="badge"></span><span id="vtext"></span></div>
+    <ul id="flags" class="flags"></ul>
+    <p id="sugg" class="sugg" hidden></p>
+    <p id="fp" class="small" hidden></p>
+    <details><summary>JSON</summary><pre id="raw"></pre></details>
+  </section>
+  <p id="err" class="err" hidden role="alert"></p>
+
+  <section class="how">
+    <h2>How it works</h2>
+    <ul>
+      <li><strong>Disposable:</strong> the domain (or a parent domain) is on the open-source <a href="https://github.com/disposable-email-domains/disposable-email-domains" target="_blank" rel="noopener noreferrer">disposable-email-domains</a> list (CC0), {{DOMAIN_COUNT}} domains, version {{LIST_VERSION}}. A small allowlist overrides known false positives. It is list-based: brand-new throwaway domains are missed until the list adds them.</li>
+      <li><strong>Role:</strong> the part before the @ is a shared or system mailbox (info, admin, support, sales, noreply …).</li>
+      <li><strong>Free provider:</strong> Gmail, Outlook/Hotmail, Yahoo, iCloud, Proton, GMX and other consumer mail.</li>
+      <li><strong>Lookalike:</strong> domains that mix alphabets (for example a Cyrillic "а" in "gmаil.com") are flagged.</li>
+      <li><strong>Syntax:</strong> a practical address check. BurnerCheck does <em>not</em> look up MX/DNS records or contact any mail server, so a valid format doesn't mean the mailbox exists.</li>
+    </ul>
+    <p>See <a href="/docs#limitations">Limitations</a>.</p>
+    <p>Wrongly flagged? <a href="mailto:{{CONTACT}}?subject=BurnerCheck%20false%20positive">Report a false positive</a>.</p>
+  </section>
+
+  <section class="how">
+    <h2>API</h2>
+    <pre>curl -X POST -H "content-type: application/json" \
+  -d '{"email":"jane@mailinator.com"}' "https://&lt;host&gt;/v1/check"
+curl "https://&lt;host&gt;/v1/domain/mailinator.com"</pre>
+    <p>API keys are issued by request during early access (free tier: 1,000 checks/month); email <a href="mailto:{{CONTACT}}?subject=BurnerCheck%20API%20key">{{CONTACT}}</a>. Batch checks (100 per call) are planned for paid plans, which are not on sale yet. See the <a href="/docs">API docs</a>.</p>
+  </section>
+  <section id="agents">
+    <h2>For AI agents (MCP)</h2>
+    <p>BurnerCheck is also a remote MCP server for AI agents: <code>check_email</code>, <code>check_domain</code> and <code>get_meta</code>, read-only, same list, keys and limits as the API. Add it to an MCP client that supports remote (Streamable HTTP) servers:</p>
+    <pre><code id="mcp-config">{ "mcpServers": { "burnercheck": { "type": "http", "url": "https://burnercheck.mike-tusa.workers.dev/mcp" } } }</code></pre>
+    <p class="small muted">Some clients use a different format (for example VS Code uses a <code>servers</code> key). No key needed; add <code>"headers": { "Authorization": "Bearer bc_live_…" }</code> for higher limits. Machine-readable: <a href="/llms.txt">llms.txt</a> · <a href="/openapi.json">OpenAPI 3.1</a>.</p>
+  </section>
+</main>
+<footer class="foot"><div class="wrap">BurnerCheck v{{VERSION}} · list {{LIST_VERSION}} · <a href="/docs">Docs</a> · <a href="/docs#privacy">Privacy</a> · <a href="mailto:{{CONTACT}}?subject=BurnerCheck%20false%20positive">Report a false positive</a> · Contact: <a href="mailto:{{CONTACT}}">{{CONTACT}}</a></div></footer>
+<script src="/app.js" defer></script>
+</body>
+</html>

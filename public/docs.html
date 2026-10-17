@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BurnerCheck API docs, pricing and privacy</title>
+<meta name="description" content="BurnerCheck API reference: disposable, role and free-provider email checks, batch, domain-only checks, limits, pricing plan, privacy and list source.">
+<link rel="stylesheet" href="/style.css">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<link rel="service-desc" type="application/json" href="/openapi.json" title="OpenAPI 3.1">
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/">BurnerCheck</a><nav><a href="/">Checker</a><a href="#pricing">Pricing</a><a href="#privacy">Privacy</a><a href="#changes">Changes</a></nav></div></header>
+<main class="wrap">
+<h1>API docs</h1>
+<p>Base URL: the host you loaded this page from. All responses are JSON with <code>access-control-allow-origin: *</code>. Errors look like <code>{"error":{"code":"…","message":"…"}}</code>.</p>
+
+<h2 id="auth">Authentication</h2>
+<p>Send an API key as <code>Authorization: Bearer bc_live_…</code>. Without a key, <code>/v1/check</code> and <code>/v1/domain</code> work at about {{ANON_PER_MIN}} checks per minute per IP. A bad or unknown key returns <code>401 invalid_api_key</code>; it never falls back to anonymous use. Repeated invalid keys from one IP get <code>429 too_many_failed_auth</code> for a minute. <strong>API keys are issued by request during early access</strong> (no self-serve signup yet): email <a href="mailto:{{CONTACT}}?subject=BurnerCheck%20API%20key">{{CONTACT}}</a>.</p>
+
+<h2 id="check">POST /v1/check (recommended) · GET /v1/check?email=</h2>
+<p><strong>Use POST.</strong> It keeps the address out of the URL. Body <code>{"email":"…"}</code>, <code>Content-Type: application/json</code>, at most 16 KB. GET with <code>?email=</code> also works and returns the same result, but the address is then part of the URL (see <a href="#privacy">Privacy</a>).</p>
+<pre>curl -X POST -H "Authorization: Bearer $KEY" -H "content-type: application/json" \
+  -d '{"email":"jane@yahooo.com"}' "https://&lt;host&gt;/v1/check"</pre>
+<pre>{
+  "email": "jane@yahooo.com",
+  "domain": "yahooo.com",
+  "valid_syntax": true,
+  "disposable": false,
+  "role": false,
+  "free_provider": false,
+  "suggestion": "jane@yahoo.com",
+  "confusable": false,
+  "list_version": "{{LIST_VERSION}}"
+}</pre>
+<table>
+<tr><th>Field</th><th>Meaning</th></tr>
+<tr><td><code>valid_syntax</code></td><td>Practical address syntax (dot-atom local part up to 64 chars, LDH domain labels, letter TLD or punycode, 254 chars total). Quoted local parts and IP-literal domains are reported as invalid. Unicode domains are converted to punycode.</td></tr>
+<tr><td><code>disposable</code></td><td>The domain or a parent domain is on the disposable list and not on the allowlist. <code>false</code> means "not on our list", not "verified real" (see <a href="#limitations">Limitations</a>).</td></tr>
+<tr><td><code>role</code></td><td>The local part (lowercased, <code>+tag</code> removed) is a shared/system mailbox such as info, admin, support, sales, noreply, postmaster.</td></tr>
+<tr><td><code>free_provider</code></td><td>Exact match against a curated list of consumer mail domains (Gmail, Outlook/Hotmail/Live, Yahoo, AOL, iCloud, Proton, Tuta, GMX, Yandex, Mail.ru, QQ, big ISPs …).</td></tr>
+<tr><td><code>suggestion</code></td><td>A corrected address for a likely one-character typo of a big webmail domain (gamil.com, yahooo.com, gmail.con …), otherwise <code>null</code>. Never offered for a domain already on any list (disposable, free provider, allowlist), and never changes a country ending (hotmail.ca and yahoo.co.nz stay as they are).</td></tr>
+<tr><td><code>confusable</code></td><td><code>true</code> if the domain uses look-alike characters: a label mixing alphabets (for example Cyrillic "а" in "gmаil.com"), a name with accents or non-Latin letters that imitates a known provider or listed domain (for example "gmáil.com"), or a .com/.net/.org name made only of Cyrillic letters that look like lowercase Latin letters (а с ԁ е һ і ј ӏ о р ԛ ѕ ԝ х у ү, for example "аррӏе.com"). Ordinary Cyrillic or Greek words such as "москва.com" are not flagged. If it imitates a big webmail provider, <code>suggestion</code> points to the real one.</td></tr>
+<tr><td><code>list_version</code></td><td><code>&lt;upstream commit date&gt;.&lt;short sha&gt;</code> of the disposable list.</td></tr>
+</table>
+<p>Input over 320 characters → <code>400 input_too_long</code>. Missing <code>email</code> → <code>400 missing_email</code>. POST: body over 16 KB → <code>413</code>, not JSON → <code>415</code>/<code>400 invalid_json</code>. POST and GET share the same rate limits and quota.</p>
+
+<h2 id="domain">GET /v1/domain/{domain}</h2>
+<p>The same check for a domain only. It never needs or accepts a local part (anything with <code>@</code> → <code>400 domain_only</code>), so you can check sign-ups without sending addresses at all.</p>
+<pre>curl "https://&lt;host&gt;/v1/domain/mailinator.com"
+{ "domain": "mailinator.com", "valid_syntax": true, "disposable": true, "free_provider": false, "suggestion": null, "confusable": false, "list_version": "{{LIST_VERSION}}" }</pre>
+
+<h2 id="batch">POST /v1/check/batch</h2>
+<p>Planned for paid plans (Pro, Business; not on sale yet), so it needs a paid-plan key. Body <code>{"emails":[…]}</code>, 1–100 strings, <code>Content-Type: application/json</code>, at most 16 KB (16,384 bytes). Each address counts as one check.</p>
+<pre>curl -X POST -H "Authorization: Bearer $KEY" -H "content-type: application/json" \
+  -d '{"emails":["a@mailinator.com","info@example.com"]}' "https://&lt;host&gt;/v1/check/batch"
+{ "count": 2, "list_version": "…", "results": [ { …same shape as /v1/check… }, … ] }</pre>
+<p>Errors: no key <code>401 api_key_required</code>; free key <code>403 paid_plan_required</code> ("planned for paid plans"); body over 16 KB <code>413 body_too_large</code> (checked from Content-Length before reading, and again on the real bytes); more than 100 <code>400 too_many_emails</code>; not JSON <code>415</code>/<code>400 invalid_json</code>; not enough quota left for the whole batch <code>429 quota_exceeded</code> (nothing is charged).</p>
+
+<h2 id="meta">GET /v1/meta</h2>
+<p>Service version and <code>build</code> (git commit), list version, domain count, allowlist size, last refresh time, source commit and licence, and the current limits. Not rate limited and not counted.</p>
+
+<h2 id="limits">Limits and quota headers</h2>
+<ul>
+<li>No key: about {{ANON_PER_MIN}} checks/min per IP (shared with the web checker).</li>
+<li>With a key: about 120 requests/min per key (a batch call counts as one request), plus the monthly quota of the plan (UTC calendar month).</li>
+<li>Keyed responses carry <code>x-quota-limit</code>, <code>x-quota-remaining</code>, <code>x-quota-reset</code>.</li>
+<li>429 codes: <code>rate_limited</code> (per minute), <code>quota_exceeded</code> (monthly), <code>daily_capacity_reached</code> (the service's shared daily capacity, resets 00:00 UTC). All include <code>retry-after</code>.</li>
+</ul>
+
+<h2 id="pricing">Pricing (planned)</h2>
+<p><strong>Paid plans are not on sale yet.</strong> This is the planned pricing:</p>
+<table>
+<tr><th>Plan</th><th>Price</th><th>Checks / month</th><th>Batch</th></tr>
+<tr><td>Free</td><td>$0</td><td>1,000</td><td>No</td></tr>
+<tr><td>Pro</td><td>$9/mo</td><td>25,000</td><td>Yes (100 per call)</td></tr>
+<tr><td>Business</td><td>$29/mo</td><td>250,000</td><td>Yes (100 per call)</td></tr>
+</table>
+<p>The web checker on the home page stays free.</p>
+
+<h2 id="privacy">Privacy</h2>
+<ul>
+<li><strong>BurnerCheck stores no addresses or domains.</strong> The value you check is processed in memory and returned to you. The only things stored are counters (checks per API key per month, total checks per day, and the total number of requests per day as a single number with no IP, address, domain or browser detail attached) and API key hashes. The Worker writes no logs, and Workers Logs/observability are switched off in its configuration (<code>[observability] enabled = false</code>); there is no Logpush and no tail consumer.</li>
+<li><strong>The web checker uses POST.</strong> Full addresses are sent in the request body, never in the page URL or your browser history. Shareable <code>/?q=</code> links and "did you mean" links contain the domain only.</li>
+<li><strong>GET /v1/check puts the address in the URL</strong>, where Cloudflare processes it in transit and account holders can see it in a live log tail. Use <code>POST /v1/check</code> or <code>/v1/domain</code> if that matters.</li>
+<li><strong>Domains only, if you prefer.</strong> <code>/v1/domain/{domain}</code> and the web checker's domain mode never see the part before the @.</li>
+<li><strong>No MX/DNS lookups, no outside requests.</strong> Every check is answered from data bundled with the Worker. No mail server is contacted.</li>
+<li>Rate limiting uses your IP address in Cloudflare's rate-limiting counters only; BurnerCheck doesn't store it. The site sets no cookies and loads no third-party scripts, fonts or trackers.</li>
+</ul>
+
+<h2 id="limitations">Limitations</h2>
+<ul>
+<li><strong>List-based.</strong> "Disposable" means the domain (or a parent) is on the <a href="#source">disposable-email-domains list</a>. New throwaway domains are missed until the list adds them and BurnerCheck refreshes its copy. <code>disposable: false</code> means "not on our list", not "safe".</li>
+<li><strong>No MX or mailbox check.</strong> BurnerCheck never contacts DNS or mail servers, so it can't tell whether a domain accepts mail.</li>
+<li><strong>A valid format doesn't mean the address exists.</strong> <code>valid_syntax</code> is a practical format check (no quoted local parts, IP-literal domains or non-ASCII local parts).</li>
+<li>Role and free-provider lists are curated and not exhaustive. Typo suggestions cover a short list of big webmail domains, one-character typos only. The lookalike check covers accented letters and common Cyrillic/Greek look-alikes, not every confusable character. A few real Cyrillic words spelled only with Latin-looking letters (for example "оса.com") are flagged too, as in browsers.</li>
+<li>Rate limits and the daily capacity are approximate.</li>
+</ul>
+
+<h2 id="changes">Changes</h2>
+<p><strong>Changes in 0.2.3</strong></p>
+<ul>
+<li>Serves <code>/.well-known/glama.json</code> (Glama connector ownership claim).</li>
+<li>Operator reads of the daily totals (<code>/v1/stats</code>) are no longer counted in them.</li>
+</ul>
+<p><strong>Changes in 0.2.2</strong></p>
+<ul>
+<li>BurnerCheck now keeps one aggregate number per UTC day: the total count of requests. Nothing about a request (IP, address, domain, browser, path) is stored with it. Daily totals are deleted after 35 days. They can be read only by the operator through a private, token-protected <code>/v1/stats</code> route. The total is approximate: a few requests around midnight UTC may not be counted.</li>
+</ul>
+<p><strong>Changes in 0.1.3</strong></p>
+<ul>
+<li>Fix: the whole-name rule in <code>confusable</code> is narrower. It now counts only Cyrillic letters that look like lowercase Latin letters (а с ԁ е һ і ј ӏ о р ԛ ѕ ԝ х у ү), so real words such as москва.com, метро.com, кот.net, κινητο.com or τεχνη.com are no longer flagged. There is no all-Greek rule any more; Greek look-alikes of known domains (for example yahοo.com) are still flagged.</li>
+</ul>
+<p><strong>Changes in 0.1.2</strong></p>
+<ul>
+<li><code>confusable</code> now also flags accented look-alikes of known domains (gmáil.com, gmäil.com) and .com/.net/.org names written entirely in Cyrillic or Greek letters that look Latin (for example "аррӏе.com").</li>
+<li>The <code>400 domain_only</code> message on <code>/v1/domain</code> now points to <code>POST /v1/check</code>.</li>
+</ul>
+<p><strong>Changes in 0.1.1</strong> (2026-10-03). Existing fields are unchanged. If you parse responses strictly, note:</p>
+<ul>
+<li><strong>New field <code>confusable</code></strong> (boolean) on <code>/v1/check</code>, <code>/v1/domain</code> and batch results.</li>
+<li><strong>New <code>POST /v1/check</code></strong> with a JSON body (recommended). <code>GET /v1/check?email=</code> still works.</li>
+<li><strong>Fewer suggestions.</strong> <code>suggestion</code> is now only given for one-character typos of a big webmail domain, never for a domain on any of our lists, and never across a real country ending. Domains that got a suggestion before and no longer do include listed typo-domains such as gmial.com, regional providers such as hotmail.ca or yahoo.co.nz, and <code>.co</code>/<code>.cm</code>/<code>.om</code> endings.</li>
+<li>Many more regional free-mail domains count as <code>free_provider</code> (for example hotmail.co.uk, yahoo.co.nz, gmx.de, web.de).</li>
+<li>Subdomains of any depth under a listed domain are detected. <code>/v1/meta</code> has a <code>build</code> field. Repeated invalid API keys from one IP get <code>429 too_many_failed_auth</code>.</li>
+</ul>
+
+<h2 id="source">Data source and licence</h2>
+<p>Disposable domains come from <a href="https://github.com/disposable-email-domains/disposable-email-domains" target="_blank" rel="noopener noreferrer">disposable-email-domains/disposable-email-domains</a>, released under <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener noreferrer">CC0 1.0 Universal</a> (public domain dedication). Current list: {{DOMAIN_COUNT}} domains, version {{LIST_VERSION}} (upstream commit <code>{{LIST_COMMIT}}</code>), refreshed {{LAST_REFRESH}}. Thank you to its maintainers and contributors.</p>
+<p>The allowlist combines the upstream project's last published allowlist (removed upstream in April 2026, same CC0 licence) with BurnerCheck's own false-positive fixes. Role and free-provider lists are curated by BurnerCheck.</p>
+
+<h2 id="false-positives">Report a false positive</h2>
+<p>If a real, long-lived mail provider is flagged as disposable, email <a href="mailto:{{CONTACT}}?subject=BurnerCheck%20false%20positive">{{CONTACT}}</a> with the domain and why it isn't disposable. Confirmed reports go on the BurnerCheck allowlist and take effect with the next deploy. You can also ask the upstream project to remove it.</p>
+</main>
+<footer class="foot"><div class="wrap">BurnerCheck v{{VERSION}} · <a href="/">Checker</a> · <a href="/v1/meta">Status</a> · Contact: <a href="mailto:{{CONTACT}}">{{CONTACT}}</a></div></footer>
+</body>
+</html>

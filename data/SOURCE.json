@@ -1,0 +1,19 @@
+{
+  "source_repo": "https://github.com/disposable-email-domains/disposable-email-domains",
+  "commit": "d1a9c51f29de15e8dab2f5ed8bda90a711ef6cb9",
+  "commit_date": "2026-10-13T08:05:11+02:00",
+  "fetched_at": "2026-10-14T07:31:20Z",
+  "blocklist_url": "https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/d1a9c51f29de15e8dab2f5ed8bda90a711ef6cb9/disposable_email_blocklist.conf",
+  "blocklist_sha256": "bf235abe3d827cc9510a5cb4faedb0e1a7c5df88b7ad9437fd03d3770d826e1e",
+  "blocklist_lines": 9881,
+  "license": "CC0-1.0",
+  "license_url": "https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/d1a9c51f29de15e8dab2f5ed8bda90a711ef6cb9/LICENSE.txt",
+  "license_sha256": "71e4e05374bd16288e638ede168482f8642204fdb90aede848c9fcdf44730026",
+  "license_first_line": "CC0 1.0 Universal (CC0 1.0)",
+  "allowlist_upstream": {
+    "commit": "de9d20d740fb58c972e54f0a9fe1f2112a31ac00",
+    "url": "https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/de9d20d740fb58c972e54f0a9fe1f2112a31ac00/allowlist.conf",
+    "lines": 189,
+    "note": "Upstream removed allowlist.conf in commit 0bccfe34e0ab912e483eb902fa14766007543ab8 (2026-04-12). This is the last published version, same CC0 licence."
+  }
+}

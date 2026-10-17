@@ -1,0 +1,27 @@
+Licence evidence for the disposable-domain data in this directory
+=================================================================
+Source repository : https://github.com/disposable-email-domains/disposable-email-domains
+Blocklist commit  : d1a9c51f29de15e8dab2f5ed8bda90a711ef6cb9 (2026-10-13T08:05:11+02:00)
+Licence file URL  : https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/d1a9c51f29de15e8dab2f5ed8bda90a711ef6cb9/LICENSE.txt
+Licence sha256    : 71e4e05374bd16288e638ede168482f8642204fdb90aede848c9fcdf44730026
+Licence header    : CC0 1.0 Universal (CC0 1.0)
+Allowlist commit  : de9d20d740fb58c972e54f0a9fe1f2112a31ac00 (same LICENSE.txt sha256; allowlist.conf removed upstream in 0bccfe34, 2026-04-12)
+Retrieved (UTC)   : 2026-10-14T07:31:20Z by scripts/refresh-list.sh
+Files covered     : disposable_email_blocklist.conf, allowlist-upstream.conf
+Not covered       : allowlist-local.txt (written by BurnerCheck), src/lib/curated.js (written by BurnerCheck)
+
+----- verbatim upstream LICENSE.txt below -----
+CC0 1.0 Universal (CC0 1.0)
+Public Domain Dedication
+
+No Copyright
+
+The person who associated a work with this deed has dedicated 
+the work to the public domain by waiving all of his or her rights
+to the work worldwide under copyright law, including all related
+and neighboring rights, to the extent allowed by law.
+
+You can copy, modify, distribute and perform the work, even 
+for commercial purposes, all without asking permission.
+
+Details: https://creativecommons.org/publicdomain/zero/1.0/legalcode

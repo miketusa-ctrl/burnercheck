@@ -1,0 +1,82 @@
+// BurnerCheck web checker. No third-party scripts, no cookies, no analytics. v0.1.1: full addresses never go in
+// a URL. Email checks are POST /v1/check with a JSON body; the /?q= deep link and suggestion links are
+// domain-only (a q containing "@" is ignored and removed from the URL).
+(function () {
+  // MCP client snippet (recipe r2 §5): show this deployment's own /mcp URL.
+  var cfg = document.getElementById('mcp-config');
+  if (cfg) cfg.textContent = JSON.stringify({ mcpServers: { burnercheck: { type: 'http', url: location.origin + '/mcp' } } }, null, 2);
+
+  'use strict';
+  var CONTACT = document.querySelector('a[href^="mailto:"]').getAttribute('href').split('?')[0].slice(7);
+  var f = document.getElementById('f');
+  var q = document.getElementById('q');
+  var out = document.getElementById('out');
+  var err = document.getElementById('err');
+  var nojs = document.getElementById('nojs');
+  var LABELS = {
+    invalid: ['bad', 'Invalid', 'This does not look like a valid email address or domain.'],
+    disposable: ['bad', 'Disposable', 'On the disposable (throwaway) domain list. Most sign-up forms should reject it.'],
+    confusable: ['warn', 'Lookalike domain', 'Uses look-alike characters from another alphabet (for example Cyrillic letters in a Latin name). Treat with suspicion.'],
+    role: ['warn', 'Role address', 'A shared or system mailbox, not a person.'],
+    free: ['info', 'Free provider', 'Consumer webmail. Fine for people, but not a company address.'],
+    unlisted: ['good', 'Not on our disposable list', 'Not on our disposable list, not a role address, not free webmail. New throwaway domains may not be listed yet, and a valid format does not mean the mailbox exists.']
+  };
+  function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
+  function verdict(r) {
+    if (!r.valid_syntax) return 'invalid';
+    if (r.disposable) return 'disposable';
+    if (r.confusable) return 'confusable';
+    if (r.role) return 'role';
+    if (r.free_provider) return 'free';
+    return 'unlisted';
+  }
+  function domainOf(v) { var i = v.lastIndexOf('@'); return i >= 0 ? v.slice(i + 1) : v; }
+  function show(r) {
+    var v = LABELS[verdict(r)];
+    var badge = document.getElementById('badge');
+    badge.textContent = v[1]; badge.className = 'badge ' + v[0];
+    document.getElementById('vtext').textContent = v[2] + (verdict(r) === 'unlisted' ? ' (list ' + r.list_version + ')' : '');
+    var flags = document.getElementById('flags'); flags.textContent = '';
+    [['Valid syntax', r.valid_syntax], ['Disposable', r.disposable], ['Role address', r.role], ['Free provider', r.free_provider], ['Lookalike', r.confusable]].forEach(function (p) {
+      if (p[1] === undefined) return;
+      var li = el('li'); li.appendChild(el('span', p[0])); li.appendChild(el('strong', p[1] ? 'yes' : 'no', p[1] ? 'y' : 'n')); flags.appendChild(li);
+    });
+    var s = document.getElementById('sugg');
+    if (r.suggestion) {
+      s.textContent = 'Did you mean '; var a = el('a', r.suggestion);
+      a.href = '/?q=' + encodeURIComponent(domainOf(r.suggestion)); // domain only, never the local part
+      a.addEventListener('click', function (ev) { ev.preventDefault(); q.value = r.suggestion; run(r.suggestion); });
+      s.appendChild(a); s.appendChild(document.createTextNode('?')); s.hidden = false;
+    } else s.hidden = true;
+    var fp = document.getElementById('fp');
+    if (r.disposable && r.domain) {
+      fp.textContent = 'Is ' + r.domain + ' a real, long-lived mail provider? ';
+      var l = el('a', 'Report a false positive');
+      l.href = 'mailto:' + CONTACT + '?subject=' + encodeURIComponent('BurnerCheck false positive: ' + r.domain) + '&body=' + encodeURIComponent('Domain: ' + r.domain + '\nList version: ' + r.list_version + '\nWhy it is not disposable:\n');
+      fp.appendChild(l); fp.hidden = false;
+    } else fp.hidden = true;
+    document.getElementById('raw').textContent = JSON.stringify(r, null, 2);
+    out.hidden = false; err.hidden = true;
+    if (nojs) nojs.hidden = true;
+  }
+  function fail(msg) { err.textContent = msg; err.hidden = false; out.hidden = true; }
+  function run(v) {
+    v = (v || '').trim();
+    if (!v) return;
+    var req = v.indexOf('@') >= 0
+      ? fetch('/v1/check', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ email: v }) })
+      : fetch('/v1/domain/' + encodeURIComponent(v), { headers: { accept: 'application/json' } });
+    req.then(function (res) {
+      return res.json().then(function (j) { return { s: res.status, j: j }; });
+    }).then(function (x) {
+      if (x.s === 200) show(x.j); else fail((x.j && x.j.error && x.j.error.message) || ('Error ' + x.s));
+    }).catch(function () { fail('Network error. Please try again.'); });
+  }
+  f.addEventListener('submit', function (ev) { ev.preventDefault(); run(q.value); });
+  var pre = new URLSearchParams(location.search).get('q');
+  if (pre != null) {
+    if (pre.indexOf('@') >= 0) {
+      history.replaceState(null, '', location.pathname); // never keep an address in the URL/history entry
+    } else { q.value = pre; run(pre); }
+  }
+})();
